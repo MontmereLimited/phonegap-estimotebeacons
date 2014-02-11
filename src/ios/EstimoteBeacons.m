@@ -103,23 +103,24 @@
     NSString* regionid = [command.arguments objectAtIndex:0];
     ESTBeaconRegion* regionFound = nil;
     
-    //    for(ESTBeaconRegion* region in self.regionWatchers) {
-    //        if([region.identifier compare:regionid]) {
-    //            regionFound = region;
-    //            break;
-    //        }
-    //    }
-    //
-    //    if(regionFound != nil) {
-    //        [self.beaconManager stopMonitoringForRegion:regionFound];
-    //
-    //        [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_OK] callbackId:command.callbackId];
-    //    } else {
-    //        [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Region with given ID not found."] callbackId:command.callbackId];
-    //    }
+    for(ESTBeaconRegion* region in self.regionWatchers) {
+        if([region.identifier compare:regionid]) {
+            regionFound = region;
+            break;
+        }
+    }
+    
+    if(regionFound != nil) {
+        [self.beaconManager stopMonitoringForRegion:regionFound];
+        
+        [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_OK] callbackId:command.callbackId];
+    } else {
+        [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Region with given ID not found."] callbackId:command.callbackId];
+    }
 }
 
 #pragma mark - Get beacons methods
+
 - (void)getBeacons:(CDVInvokedUrlCommand*)command
 {
     [self.commandDelegate runInBackground:^{
@@ -157,11 +158,9 @@
 - (void)getClosestBeacon:(CDVInvokedUrlCommand*)command
 {
     if ([self.beacons count] > 0) {
-        [self.commandDelegate runInBackground:^{
-            [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_OK
-                                                                 messageAsDictionary:[self beaconToDictionary:[self.beacons objectAtIndex:0]]]
-                                        callbackId:command.callbackId];
-        }];
+        [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_OK
+                                                             messageAsDictionary:[self beaconToDictionary:[self.beacons objectAtIndex:0]]]
+                                    callbackId:command.callbackId];
     } else {
         [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_OK] callbackId:command.callbackId];
     }
@@ -179,6 +178,7 @@
         [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"There are no connected beacons."] callbackId:command.callbackId];
     }
 }
+
 #pragma mark - Virtual Beacon methods
 
 - (void)startVirtualBeacon:(CDVInvokedUrlCommand*)command
@@ -199,7 +199,8 @@
     [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_OK] callbackId:command.callbackId];
 }
 
-#pragma mark - Connecto to methods
+#pragma mark - Connect to methods
+
 - (void)connectToBeacon:(CDVInvokedUrlCommand*)command
 {
     NSInteger major = [[command.arguments objectAtIndex:0] intValue];
@@ -215,10 +216,10 @@
             NSNumber* currentMinor = currentBeacon.minor;
             
             if(currentMajor == nil) {
-                currentMajor = currentBeacon.ibeacon.major;
+                currentMajor = currentBeacon.major;
             }
             if(currentMinor == nil) {
-                currentMinor = currentBeacon.ibeacon.minor;
+                currentMinor = currentBeacon.minor;
             }
             
             if(currentMajor == nil || currentMajor == nil) {
@@ -292,6 +293,7 @@
 }
 
 #pragma mark - Disconnect from Beacon
+
 - (void)disconnectFromBeacon:(CDVInvokedUrlCommand*)command
 {
     [self.commandDelegate runInBackground:^{
@@ -314,13 +316,16 @@
 }
 
 #pragma mark - Change attributes of beacon
-- (void)setFrequencyOfConnectedBeacon:(CDVInvokedUrlCommand*)command
+
+- (void)setAdvIntervalOfConnectedBeacon:(CDVInvokedUrlCommand*)command
 {
     if(self.connectedBeacon != nil) {
-        NSNumber* frequency = [command.arguments objectAtIndex:0];
+        NSNumber* advInterval = [command.arguments objectAtIndex:0];
         
-        if(frequency != nil && [frequency intValue] >= 80 && [frequency intValue] <= 3200) {
-            [self.connectedBeacon writeBeaconFrequency:[frequency shortValue] withCompletion:^(unsigned int value, NSError *error){
+        if(advInterval != nil && [advInterval intValue] >= 80 && [advInterval intValue] <= 3200) {
+            
+            
+            [self.connectedBeacon writeBeaconAdvInterval:[advInterval shortValue] withCompletion:^(unsigned short value, NSError *error) {
                 if(error != nil) {
                     [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:error.localizedDescription] callbackId:command.callbackId];
                 } else {
@@ -331,7 +336,7 @@
             }];
             
         } else {
-            [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Invalid frequency value."] callbackId:command.callbackId];
+            [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Invalid advInterval value."] callbackId:command.callbackId];
         }
     } else {
         //no connected beacons
@@ -373,7 +378,7 @@
         }
         
         if(powerLevel || powerLevel == ESTBeaconPowerLevel7) {
-            [self.connectedBeacon writeBeaconPower:powerLevel withCompletion:^(unsigned int value, NSError *error){
+            [self.connectedBeacon writeBeaconPower:powerLevel withCompletion:^(ESTBeaconPower value, NSError *error) {
                 if(error != nil) {
                     [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:error.localizedDescription] callbackId:command.callbackId];
                 } else {
@@ -431,16 +436,16 @@
     NSMutableDictionary* props = [NSMutableDictionary dictionaryWithCapacity:16];
     NSNumber* major = beacon.major;
     NSNumber* minor = beacon.minor;
-    NSNumber* rssi = beacon.rssi;
+    NSNumber* rssi = [NSNumber numberWithInt:beacon.rssi];
     
     if(major == nil) {
-        major = beacon.ibeacon.major;
+        major = beacon.major;
     }
     if(minor == nil) {
-        minor = beacon.ibeacon.minor;
+        minor = beacon.minor;
     }
     if(rssi == nil) {
-        rssi = [NSNumber numberWithInt:beacon.ibeacon.rssi];
+        rssi = [NSNumber numberWithInt:beacon.rssi];
     }
     
     [props setValue:beacon.batteryLevel forKey:@"batteryLevel"];
@@ -448,7 +453,7 @@
     [props setValue:beacon.hardwareVersion forKey:@"hardwareVersion"];
     [props setValue:major forKey:@"major"];
     [props setValue:minor forKey:@"minor"];
-    [props setValue:beacon.frequency forKey:@"frequency"];
+    [props setValue:beacon.advInterval forKey:@"advInterval"];
     [props setValue:beacon.description forKey:@"description"];
     [props setValue:rssi forKey:@"rssi"];
     [props setValue:beacon.debugDescription forKey:@"debugDescription"];
@@ -460,12 +465,12 @@
         [props setValue:[NSNumber numberWithChar:[beacon.power charValue]] forKey:@"power"];
     }
     
-    if(beacon.ibeacon != nil) {
-        [props setValue:[NSNumber numberWithDouble:beacon.ibeacon.accuracy] forKey:@"accuracy"];
-        [props setValue:[NSNumber numberWithInt:beacon.ibeacon.proximity] forKey:@"proximity"];
+    if(beacon != nil) {
+        [props setValue:beacon.distance forKey:@"distance"];
+        [props setValue:[NSNumber numberWithInt:beacon.proximity] forKey:@"proximity"];
         
-        if(beacon.ibeacon.proximityUUID != nil) {
-            [props setValue:beacon.ibeacon.proximityUUID.UUIDString forKey:@"proximityUUID"];
+        if(beacon.proximityUUID != nil) {
+            [props setValue:beacon.proximityUUID.UUIDString forKey:@"proximityUUID"];
         }
     }
     

@@ -5,7 +5,6 @@
     <name>EstimoteBeacons</name>
     <description>EstimoteBeacons</description>
     <license>Apache 2.0</license>
-
     <js-module src="www/EstimoteBeacons.js" name="EstimoteBeacons">
         <clobbers target="EstimoteBeacons" />
     </js-module>
